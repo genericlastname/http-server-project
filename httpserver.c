@@ -54,24 +54,32 @@ void handle_files_request(int fd) {
   struct stat s;
 
   if (stat(server_files_directory, &s) == 0) {
-    printf("FILE: %s\nF_OK: %i\n", server_files_directory, s.st_mode & F_OK);
     if (s.st_mode & S_IFDIR) {
       // if path is a directory
     } else if (s.st_mode & S_IFREG) {
       // if path is a file
+      FILE* f;
+      char* f_type = http_get_mime_type(server_files_directory);
+      size_t size = s.st_size;
+      char* data;
+
       http_start_response(fd, 200);
-      http_send_header(fd, "Content-Type", http_get_mime_type(server_files_directory));
+      http_send_header(fd, "Content-Type", f_type);
+      http_send_header(fd, "Server", "httpserver/1.0");
       http_end_headers(fd);
-      http_send_string(fd,
-          "<center>"
-          "<h1>This is in fact a file</h1>"
-          "<hr>"
-          "</center>");
+
+      f = fopen(server_files_directory, "rb");
+      if (!f) return;
+
+      data = malloc(size * sizeof(char));
+      fread(data, size, 1, f);
+      http_send_data(fd, data, size);
     } 
   } else {
     // 404 error
     http_start_response(fd, 404);
     http_send_header(fd, "Content-Type", "text/html");
+    http_send_header(fd, "Server", "httpserver/1.0");
     http_end_headers(fd);
     http_send_string(fd,
         "<center>"
