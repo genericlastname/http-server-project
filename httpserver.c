@@ -52,15 +52,33 @@ void handle_files_request(int fd) {
 
   struct http_request *request = http_request_parse(fd);
 
-  http_start_response(fd, 200);
-  http_send_header(fd, "Content-Type", "text/html");
-  http_end_headers(fd);
-  http_send_string(fd,
-      "<center>"
-      "<h1>Welcome to httpserver!</h1>"
-      "<hr>"
-      "<p>Nothing's here yet.</p>"
-      "</center>");
+  struct stat s;
+  if (stat(server_files_directory, &s) == 0) {
+    if (s.st_mode & S_IFDIR) {
+      // if path is a directory
+    } else if (s.st_mode & S_IFREG) {
+      // if path is a file
+      http_start_response(fd, 200);
+      http_send_header(fd, "Content-Type", "text/html");
+      http_end_headers(fd);
+      http_send_string(fd,
+          "<center>"
+          "<h1>This is in fact a file</h1>"
+          "<hr>"
+          "</center>");
+    } else {
+      // 404 error
+      http_start_response(fd, 404);
+      http_send_header(fd, "Content-Type", "text/html");
+      http_end_headers(fd);
+      http_send_string(fd,
+          "<center>"
+          "<h1>404 ERROR</h1>"
+          "<hr>"
+          "<p>No page found</p>"
+          "</center>");
+    }
+  }
 }
 
 

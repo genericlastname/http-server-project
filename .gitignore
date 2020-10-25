@@ -40,3 +40,6 @@
 *.su
 
 compile_commands.json
+httpserver
+.cache
+.tags
