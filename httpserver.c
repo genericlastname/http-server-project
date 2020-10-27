@@ -13,10 +13,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <unistd.h>
 
 #include "libhttp.h"
 #include "wq.h"
+#include "page_generator.h"
 
 /*
  * Global configuration variables.
@@ -51,17 +51,30 @@ void handle_files_request(int fd) {
    */
 
   struct http_request *request = http_request_parse(fd);
+  printf("server_files_directory: %s\nrequest->path: %s\n",
+         server_files_directory,
+         request->path);
   struct stat s;
+  char* data;
 
   if (stat(server_files_directory, &s) == 0) {
     if (s.st_mode & S_IFDIR) {
       // if path is a directory
+      http_start_response(fd, 200);
+      http_send_header(fd, "Content-Type", "text/html");
+      http_send_header(fd, "Server", "httpserver/1.0");
+      http_end_headers(fd);
+      http_send_string(fd,
+                       "<center>"
+                       "<h1>This is a directory</h1>"
+                       "<hr>"
+                       "<p>Coming soon</p>"
+                       "</center>");
     } else if (s.st_mode & S_IFREG) {
       // if path is a file
       FILE* f;
       char* f_type = http_get_mime_type(server_files_directory);
       size_t size = s.st_size;
-      char* data;
 
       http_start_response(fd, 200);
       http_send_header(fd, "Content-Type", f_type);
