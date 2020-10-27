@@ -25,6 +25,7 @@
  * command line arguments (already implemented for you).
  */
 wq_t work_queue;
+pthread_t *workers = NULL;
 int num_threads;
 int server_port;
 char *server_files_directory;
@@ -128,6 +129,14 @@ void init_thread_pool(int num_threads, void (*request_handler)(int)) {
   /*
    * TODO: Part of your solution for Task 2 goes here!
    */
+  workers = (pthread_t *)calloc(num_threads, sizeof(pthread_t));
+  for( int t =0;t<num_threads;t++){
+    if(pthread_create(&workers[t],NULL,request_handler,0) != 0){
+      //error do something
+      
+    } 
+  }
+  
 }
 
 /*
