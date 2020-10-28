@@ -75,7 +75,7 @@ void handle_files_request(int fd) {
       http_send_string(fd, "<ul style=\"list-style-type:none;\">");
 
       while ((dir = readdir(d))) {
-        sprintf(temp, "<li><a>%s</a></li>", dir->d_name);
+        sprintf(temp, "<li><a href=\"%s\">%s</a></li>", dir->d_name, dir->d_name);
         http_send_string(fd, temp);
       }
 
