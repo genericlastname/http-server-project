@@ -69,7 +69,7 @@ void handle_files_request(int fd) {
       http_send_header(fd, "Server", "httpserver/1.0");
       http_end_headers(fd);
 
-      char temp[300];
+      char temp[600];
       sprintf(temp, "<center><h1>%s</h1><hr></center>", server_files_directory);
       http_send_string(fd, temp);
       http_send_string(fd, "<ul style=\"list-style-type:none;\">");
