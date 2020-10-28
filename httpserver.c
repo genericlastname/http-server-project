@@ -64,12 +64,21 @@ void handle_files_request(int fd) {
       http_send_header(fd, "Content-Type", "text/html");
       http_send_header(fd, "Server", "httpserver/1.0");
       http_end_headers(fd);
-      http_send_string(fd,
-                       "<center>"
-                       "<h1>This is a directory</h1>"
-                       "<hr>"
-                       "<p>Coming soon</p>"
-                       "</center>");
+
+      char temp[80];
+      sprintf(temp, "<center><h1>%s</h1><hr></center>", server_files_directory);
+      http_send_string(fd, temp);
+
+      // http_send_string(fd, generate_directory_page(fd));
+      // http_send_string(fd,
+      //                  "<center>"
+      //                  "<h1>This is a directory</h1>"
+      //                  "<hr>"
+      //                  "<p>Coming soon</p>"
+      //                  "</center>");
+      // http_send_string(fd, "<p>Path: ");
+      // http_send_string(fd, server_files_directory);
+      // http_send_string(fd, "</p>");
     } else if (s.st_mode & S_IFREG) {
       // if path is a file
       FILE* f;
