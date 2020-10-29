@@ -31,6 +31,24 @@ char *server_proxy_hostname;
 int server_proxy_port;
 
 
+void load_file(int fd, char* path, size_t size) {
+  FILE* f;
+  char* data;
+
+  http_start_response(fd, 200);
+  http_send_header(fd, "Content-Type", http_get_mime_type(path));
+  http_send_header(fd, "Server", "httpserver/1.0");
+  http_end_headers(fd);
+
+  f = fopen(server_files_directory, "rb");
+  if (!f) return;
+
+  data = malloc(size * sizeof(char));
+  fread(data, size, 1, f);
+  http_send_data(fd, data, size);
+  fclose(f);
+}
+
 /*
  * Reads an HTTP request from stream (fd), and writes an HTTP response
  * containing:
@@ -43,12 +61,6 @@ int server_proxy_port;
  *   4) Send a 404 Not Found response.
  */
 void handle_files_request(int fd) {
-
-  /*
-   * TODO: Your solution for Task 1 goes here! Feel free to delete/modify *
-   * any existing code.
-   */
-
   struct http_request *request = http_request_parse(fd);
   printf("server_files_directory: %s\nrequest->path: %s\n",
          server_files_directory,
@@ -80,34 +92,9 @@ void handle_files_request(int fd) {
       }
 
       http_send_string(fd, "</ul>");
-
-      // http_send_string(fd, generate_directory_page(fd));
-      // http_send_string(fd,
-      //                  "<center>"
-      //                  "<h1>This is a directory</h1>"
-      //                  "<hr>"
-      //                  "<p>Coming soon</p>"
-      //                  "</center>");
-      // http_send_string(fd, "<p>Path: ");
-      // http_send_string(fd, server_files_directory);
-      // http_send_string(fd, "</p>");
     } else if (s.st_mode & S_IFREG) {
       // if path is a file
-      FILE* f;
-      char* f_type = http_get_mime_type(server_files_directory);
-      size_t size = s.st_size;
-
-      http_start_response(fd, 200);
-      http_send_header(fd, "Content-Type", f_type);
-      http_send_header(fd, "Server", "httpserver/1.0");
-      http_end_headers(fd);
-
-      f = fopen(server_files_directory, "rb");
-      if (!f) return;
-
-      data = malloc(size * sizeof(char));
-      fread(data, size, 1, f);
-      http_send_data(fd, data, size);
+      load_file(fd, server_files_directory, s.st_size);
     } 
   } else {
     // 404 error
