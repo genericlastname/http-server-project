@@ -59,6 +59,7 @@ void load_dir(int fd, char* path) {
   http_send_header(fd, "Content-Type", "text/html");
   http_send_header(fd, "Server", "httpserver/1.0");
   http_end_headers(fd);
+  http_send_string(fd, "<head><link rel=\"icon\" href=\"data:,\"></head>");
 
   char temp[600];
   sprintf(temp, "<center><h1>%s</h1><hr></center>", server_files_directory);
@@ -71,6 +72,22 @@ void load_dir(int fd, char* path) {
   }
   http_send_string(fd, "</ul>");
   closedir(d);
+}
+
+char* join_path(char* p1, char* p2) {
+  char* joined;
+  int p1_end = strlen(p1) - 1;
+  int p1_len;
+
+  if (p1[p1_end] == '/') {
+    p1_len = strlen(p1) - 1;
+  } else {
+    p1_len = strlen(p1);
+  }
+  joined = malloc(p1_len + sizeof(p2));
+  strncpy(joined, p1, p1_len);
+  strcat(joined, p2);
+  return joined;
 }
 
 /*
@@ -86,10 +103,16 @@ void load_dir(int fd, char* path) {
  */
 void handle_files_request(int fd) {
   struct http_request *request = http_request_parse(fd);
-  printf("server_files_directory: %s\nrequest->path: %s\n",
-         server_files_directory,
-         request->path);
   struct stat s;
+
+  // char* full_path = malloc((sizeof(server_files_directory) + sizeof(request->path)) - 1);
+  // strncpy(full_path, server_files_directory, sizeof(server_files_directory) - 1);
+  // strcat(full_path, request->path);
+  // printf("Full path: %s\n\n", full_path);
+  printf("%s\n%s\n%s\n\n", 
+         server_files_directory,
+         request->path,
+         join_path(server_files_directory, request->path));
 
   if (stat(server_files_directory, &s) == 0) {
     if (s.st_mode & S_IFDIR) {
