@@ -49,6 +49,30 @@ void load_file(int fd, char* path, size_t size) {
   fclose(f);
 }
 
+void load_dir(int fd, char* path) {
+  DIR* d;
+  d = opendir(path);
+  if (!d) return;
+  struct dirent* dir;
+
+  http_start_response(fd, 200);
+  http_send_header(fd, "Content-Type", "text/html");
+  http_send_header(fd, "Server", "httpserver/1.0");
+  http_end_headers(fd);
+
+  char temp[600];
+  sprintf(temp, "<center><h1>%s</h1><hr></center>", server_files_directory);
+  http_send_string(fd, temp);
+  http_send_string(fd, "<ul style=\"list-style-type:none;\">");
+
+  while ((dir = readdir(d))) {
+    sprintf(temp, "<li><a href=\"%s\">%s</a></li>", dir->d_name, dir->d_name);
+    http_send_string(fd, temp);
+  }
+  http_send_string(fd, "</ul>");
+  closedir(d);
+}
+
 /*
  * Reads an HTTP request from stream (fd), and writes an HTTP response
  * containing:
@@ -66,32 +90,11 @@ void handle_files_request(int fd) {
          server_files_directory,
          request->path);
   struct stat s;
-  char* data;
 
   if (stat(server_files_directory, &s) == 0) {
     if (s.st_mode & S_IFDIR) {
       // if path is a directory
-      DIR* d;
-      d = opendir(server_files_directory);
-      if (!d) return;
-      struct dirent* dir;
-
-      http_start_response(fd, 200);
-      http_send_header(fd, "Content-Type", "text/html");
-      http_send_header(fd, "Server", "httpserver/1.0");
-      http_end_headers(fd);
-
-      char temp[600];
-      sprintf(temp, "<center><h1>%s</h1><hr></center>", server_files_directory);
-      http_send_string(fd, temp);
-      http_send_string(fd, "<ul style=\"list-style-type:none;\">");
-
-      while ((dir = readdir(d))) {
-        sprintf(temp, "<li><a href=\"%s\">%s</a></li>", dir->d_name, dir->d_name);
-        http_send_string(fd, temp);
-      }
-
-      http_send_string(fd, "</ul>");
+      load_dir(fd, server_files_directory);
     } else if (s.st_mode & S_IFREG) {
       // if path is a file
       load_file(fd, server_files_directory, s.st_size);
