@@ -40,8 +40,11 @@ void load_file(int fd, char* path, size_t size) {
   http_send_header(fd, "Server", "httpserver/1.0");
   http_end_headers(fd);
 
-  f = fopen(server_files_directory, "rb");
-  if (!f) return;
+  f = fopen(path, "rb");
+  if (!f) {
+    printf("couldn't open path: %s\n", path);
+    return;
+  }
 
   data = malloc(size * sizeof(char));
   fread(data, size, 1, f);
@@ -52,7 +55,9 @@ void load_file(int fd, char* path, size_t size) {
 void load_dir(int fd, char* path) {
   DIR* d;
   d = opendir(path);
-  if (!d) return;
+  if (!d) {
+    return;
+  }
   struct dirent* dir;
 
   http_start_response(fd, 200);
@@ -62,7 +67,7 @@ void load_dir(int fd, char* path) {
   http_send_string(fd, "<head><link rel=\"icon\" href=\"data:,\"></head>");
 
   char temp[600];
-  sprintf(temp, "<center><h1>%s</h1><hr></center>", server_files_directory);
+  sprintf(temp, "<center><h1>%s</h1><hr></center>", path);
   http_send_string(fd, temp);
   http_send_string(fd, "<ul style=\"list-style-type:none;\">");
 
@@ -84,9 +89,18 @@ char* join_path(char* p1, char* p2) {
   } else {
     p1_len = strlen(p1);
   }
-  joined = malloc(p1_len + sizeof(p2));
-  strncpy(joined, p1, p1_len);
-  strcat(joined, p2);
+  // joined = malloc(p1_len + sizeof(p2));
+  if (strcmp(p2, "/") == 0) {
+    joined = malloc(p1_len + 2);
+    memset(joined, 0, p1_len + 2);
+    strncpy(joined, p1, p1_len);
+    strcat(joined, "/\0");
+  } else {
+    joined = malloc(p1_len + sizeof(p2));
+    memset(joined, 0, p1_len + sizeof(p2));
+    strncpy(joined, p1, p1_len);
+    strcat(joined, p2);
+  }
   return joined;
 }
 
@@ -114,13 +128,13 @@ void handle_files_request(int fd) {
          request->path,
          join_path(server_files_directory, request->path));
 
-  if (stat(server_files_directory, &s) == 0) {
+  if (stat(join_path(server_files_directory, request->path), &s) == 0) {
     if (s.st_mode & S_IFDIR) {
       // if path is a directory
-      load_dir(fd, server_files_directory);
+      load_dir(fd, join_path(server_files_directory, request->path));
     } else if (s.st_mode & S_IFREG) {
       // if path is a file
-      load_file(fd, server_files_directory, s.st_size);
+      load_file(fd, join_path(server_files_directory, request->path), s.st_size);
     } 
   } else {
     // 404 error
