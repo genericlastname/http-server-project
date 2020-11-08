@@ -18,6 +18,9 @@
 #include "libhttp.h"
 #include "wq.h"
 
+
+static volatile int threads_keepalive;
+static volatile int threads_on_hold;
 /*
  * Global configuration variables.
  * You need to use these in your implementation of handle_files_request and
