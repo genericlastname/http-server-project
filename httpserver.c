@@ -27,6 +27,7 @@ wq_t work_queue;
 int num_threads;
 int server_port;
 char *server_files_directory;
+char *previous_directory;
 char *server_proxy_hostname;
 int server_proxy_port;
 
@@ -46,10 +47,12 @@ void load_file(int fd, char* path, size_t size) {
     return;
   }
 
-  data = malloc(size * sizeof(char));
+  data = malloc(size*sizeof(char));
+  printf("Size: %zu\n", size);
   fread(data, size, 1, f);
   http_send_data(fd, data, size);
   fclose(f);
+  free(data);
 }
 
 void load_dir(int fd, char* path) {
@@ -118,23 +121,17 @@ char* join_path(char* p1, char* p2) {
 void handle_files_request(int fd) {
   struct http_request *request = http_request_parse(fd);
   struct stat s;
+  char* joined_path = join_path(server_files_directory, request->path);
 
-  // char* full_path = malloc((sizeof(server_files_directory) + sizeof(request->path)) - 1);
-  // strncpy(full_path, server_files_directory, sizeof(server_files_directory) - 1);
-  // strcat(full_path, request->path);
-  // printf("Full path: %s\n\n", full_path);
-  printf("%s\n%s\n%s\n\n", 
-         server_files_directory,
-         request->path,
-         join_path(server_files_directory, request->path));
-
-  if (stat(join_path(server_files_directory, request->path), &s) == 0) {
+  printf("Server files: %s\nRequest: %s\n", server_files_directory, request->path);
+  if (stat(joined_path, &s) == 0) {
     if (s.st_mode & S_IFDIR) {
       // if path is a directory
-      load_dir(fd, join_path(server_files_directory, request->path));
+      load_dir(fd, joined_path);
     } else if (s.st_mode & S_IFREG) {
       // if path is a file
-      load_file(fd, join_path(server_files_directory, request->path), s.st_size);
+      printf("size %zu\n%s\n", s.st_size, joined_path);
+      load_file(fd, joined_path, s.st_size);
     } 
   } else {
     // 404 error
@@ -149,6 +146,7 @@ void handle_files_request(int fd) {
         "<p>No page found</p>"
         "</center>");
   }
+  // free(joined_path);
 }
 
 
