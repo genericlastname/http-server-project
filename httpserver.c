@@ -48,7 +48,6 @@ void load_file(int fd, char* path, size_t size) {
   }
 
   data = malloc(size*sizeof(char));
-  printf("Size: %zu\n", size);
   fread(data, size, 1, f);
   http_send_data(fd, data, size);
   fclose(f);
@@ -121,16 +120,21 @@ char* join_path(char* p1, char* p2) {
 void handle_files_request(int fd) {
   struct http_request *request = http_request_parse(fd);
   struct stat s;
-  char* joined_path = join_path(server_files_directory, request->path);
+  char* joined_path;
 
-  printf("Server files: %s\nRequest: %s\n", server_files_directory, request->path);
+  if (strcmp(request->path, "/") == 0) {
+    server_files_directory = previous_directory;
+  }
+  joined_path = join_path(server_files_directory, request->path);
+
   if (stat(joined_path, &s) == 0) {
     if (s.st_mode & S_IFDIR) {
       // if path is a directory
+      previous_directory = server_files_directory;
+      server_files_directory = joined_path;
       load_dir(fd, joined_path);
     } else if (s.st_mode & S_IFREG) {
       // if path is a file
-      printf("size %zu\n%s\n", s.st_size, joined_path);
       load_file(fd, joined_path, s.st_size);
     } 
   } else {
@@ -146,7 +150,7 @@ void handle_files_request(int fd) {
         "<p>No page found</p>"
         "</center>");
   }
-  // free(joined_path);
+  // printf("sfd: %s\nprv: %s\nreq: %s\n\n", server_files_directory, previous_directory, request->path);
 }
 
 
@@ -365,6 +369,7 @@ int main(int argc, char **argv) {
     exit_with_usage();
   }
 
+  previous_directory = server_files_directory;
   serve_forever(&server_fd, request_handler);
 
   return EXIT_SUCCESS;
