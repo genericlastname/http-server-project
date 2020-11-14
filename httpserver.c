@@ -132,7 +132,7 @@ void handle_proxy_request(int fd) {
 }
 
 void *startwork(void*handler){
-	void (*requesthandler)(int) = handler;
+	void (*request_handler)(int) = handler;
 	int client_socket_number = wq_pop(&work_queue);
 	/*
 	printf("Accepted connection from %s on port %d\n",
@@ -147,6 +147,7 @@ void *startwork(void*handler){
         inet_ntoa(client_address.sin_addr),
         client_address.sin_port);
 	*/
+	return NULL;
 }
 
 
