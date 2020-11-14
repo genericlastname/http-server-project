@@ -144,10 +144,10 @@ void init_thread_pool(int num_threads, void (*request_handler)(int)) {
 	}
 	/* Make new thread pool */
 	thpool* thpool_p;
-	thpool_p = (struct thpool*)malloc(sizeof( thpool));
+	thpool_p = (thpool*)malloc(sizeof( thpool));
 	if (thpool_p == NULL){
 		fprintf(stderr, "thpool_init(): Could not allocate memory for thread pool\n");
-		return NULL;
+		return;
 	}
 	thpool_p->num_threads_alive   = 0;
 	thpool_p->num_threads_working = 0;
@@ -155,7 +155,7 @@ void init_thread_pool(int num_threads, void (*request_handler)(int)) {
 	if (jobqueue_init(thpool_p) == -1){
 		fprintf(stderr, "thpool_init(): Could not allocate memory for job queue\n");
 		free(thpool_p);
-		return NULL;
+		return;
 	}
 	/* Make threads in pool */
 	thpool_p->threads = (struct thread**)malloc(num_threads * sizeof(struct thread *));
@@ -164,7 +164,7 @@ void init_thread_pool(int num_threads, void (*request_handler)(int)) {
 		jobqueue_destroy(thpool_p);
 		free(thpool_p->jobqueue_p);
 		free(thpool_p);
-		return NULL;
+		return;
 	}
 
 	pthread_mutex_init(&(thpool_p->thcount_lock), NULL);
@@ -183,8 +183,7 @@ void init_thread_pool(int num_threads, void (*request_handler)(int)) {
 	/* Wait for threads to initialize */
 	while (thpool_p->num_threads_alive != num_threads) {}
 
-	return thpool_p;
-}
+	}
   /*
   workers = (pthread_t *)calloc(num_threads, sizeof(pthread_t));
   for( int t =0;t<num_threads;t++){
