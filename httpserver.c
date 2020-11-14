@@ -131,19 +131,22 @@ void handle_proxy_request(int fd) {
   */
 }
 
-void startwork(void (*request_handler)(int)){
-	int client_socket_number = wq_pop(work_queue);
-	
+void *startwork(void*handler){
+	void (*requesthandler)(int) = handler;
+	int client_socket_number = wq_pop(&work_queue);
+	/*
 	printf("Accepted connection from %s on port %d\n",
         inet_ntoa(client_address.sin_addr),
         client_address.sin_port);
+	*/
 
     request_handler(client_socket_number);
     close(client_socket_number);
-
+/*
     printf("Accepted connection from %s on port %d\n",
         inet_ntoa(client_address.sin_addr),
         client_address.sin_port);
+	*/
 }
 
 
@@ -183,7 +186,7 @@ void init_thread_pool(int num_threads, void (*request_handler)(int)) {
 	/* Thread init */
 	int n;
 	for (n=0; n<thpool_p->maxthreads; n++){
-		int status = pthread_create(&thpool_p->ids[n], NULL, startwork, (void*)request_handler);
+		int status = pthread_create(&thpool_p->ids[n], NULL, &startwork, (void*)request_handler);
 		if(status != 0){
 			printf("Problem creating thread \n");
 		}
@@ -203,10 +206,7 @@ void init_thread_pool(int num_threads, void (*request_handler)(int)) {
     if(pthread_create(&workers[t],NULL,request_handler,0) != 0){
       //error do something
       */
-    } 
-  }
-  
-}
+ 
 
 /*
  * Opens a TCP stream socket on all interfaces with port number PORTNO. Saves
