@@ -34,7 +34,11 @@ int server_port;
 char *server_files_directory;
 char *server_proxy_hostname;
 int server_proxy_port;
-
+typedef struct tThpool {
+	pthread_t *pool;
+	int maxthreads;
+	int numthreads;
+} thpool;
 
 /*
  * Reads an HTTP request from stream (fd), and writes an HTTP response
@@ -139,8 +143,8 @@ void init_thread_pool(int num_threads, void (*request_handler)(int)) {
 		num_threads = 0;
 	}
 	/* Make new thread pool */
-	thpool_* thpool_p;
-	thpool_p = (struct thpool_*)malloc(sizeof(struct thpool_));
+	thpool* thpool_p;
+	thpool_p = (struct thpool*)malloc(sizeof( thpool));
 	if (thpool_p == NULL){
 		fprintf(stderr, "thpool_init(): Could not allocate memory for thread pool\n");
 		return NULL;
