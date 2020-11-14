@@ -131,6 +131,21 @@ void handle_proxy_request(int fd) {
   */
 }
 
+void startwork(void (*request_handler)(int)){
+	int client_socket_number = wq_pop(work_queue);
+	
+	printf("Accepted connection from %s on port %d\n",
+        inet_ntoa(client_address.sin_addr),
+        client_address.sin_port);
+
+    request_handler(client_socket_number);
+    close(client_socket_number);
+
+    printf("Accepted connection from %s on port %d\n",
+        inet_ntoa(client_address.sin_addr),
+        client_address.sin_port);
+}
+
 
 void init_thread_pool(int num_threads, void (*request_handler)(int)) {
   /*
@@ -168,7 +183,7 @@ void init_thread_pool(int num_threads, void (*request_handler)(int)) {
 	/* Thread init */
 	int n;
 	for (n=0; n<thpool_p->maxthreads; n++){
-		int status = pthread_create(&thpool_p->ids[n], NULL, startwork, NULL);
+		int status = pthread_create(&thpool_p->ids[n], NULL, startwork, (void*)request_handler);
 		if(status != 0){
 			printf("Problem creating thread \n");
 		}
