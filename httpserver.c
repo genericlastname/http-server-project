@@ -73,6 +73,7 @@ void load_dir(int fd, char* path) {
   http_send_string(fd, temp);
   http_send_string(fd, "<ul style=\"list-style-type:none;\">");
 
+  // loop through files to list names
   while ((dir = readdir(d))) {
     sprintf(temp, "<li><a href=\"%s\">%s</a></li>", dir->d_name, dir->d_name);
     http_send_string(fd, temp);
@@ -128,10 +129,23 @@ void handle_files_request(int fd) {
   joined_path = join_path(server_files_directory, request->path);
 
   if (stat(joined_path, &s) == 0) {
+    previous_directory = server_files_directory;
+    server_files_directory = joined_path;
     if (s.st_mode & S_IFDIR) {
       // if path is a directory
-      previous_directory = server_files_directory;
-      server_files_directory = joined_path;
+      DIR* d = opendir(joined_path);
+      struct dirent *dir;
+      // check if directory contains an index.html
+      while ((dir = readdir(d))) {
+        if (strcmp(dir->d_name, "index.html") == 0) {
+          char* new_path = join_path(joined_path, "/index.html");
+          stat(new_path, &s);
+          load_file(fd, new_path, s.st_size);
+          closedir(d);
+          return;
+        }
+      }
+      closedir(d);
       load_dir(fd, joined_path);
     } else if (s.st_mode & S_IFREG) {
       // if path is a file
@@ -150,7 +164,7 @@ void handle_files_request(int fd) {
         "<p>No page found</p>"
         "</center>");
   }
-  // printf("sfd: %s\nprv: %s\nreq: %s\n\n", server_files_directory, previous_directory, request->path);
+  printf("sfd: %s\nprv: %s\nreq: %s\n\n", server_files_directory, previous_directory, request->path);
 }
 
 
