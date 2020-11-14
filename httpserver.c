@@ -35,7 +35,7 @@ char *server_files_directory;
 char *server_proxy_hostname;
 int server_proxy_port;
 typedef struct tThpool {
-	pthread_t *pool;
+	pthread_t *ids;
 	int maxthreads;
 	int numthreads;
 } thpool;
@@ -149,39 +149,37 @@ void init_thread_pool(int num_threads, void (*request_handler)(int)) {
 		fprintf(stderr, "thpool_init(): Could not allocate memory for thread pool\n");
 		return;
 	}
-	thpool_p->num_threads_alive   = 0;
-	thpool_p->num_threads_working = 0;
+	thpool_p->numthreads = 0;
+	thpool_p->maxthreads = 5;
+	thpool_p->ids = (pthread_t *)malloc(sizeof(pthread_t ) * thpool_p->maxthreads);
+	
 	/* Initialise the job queue */
-	if (jobqueue_init(thpool_p) == -1){
+	if (thpool_p->ids == NULL){
 		fprintf(stderr, "thpool_init(): Could not allocate memory for job queue\n");
 		free(thpool_p);
 		return;
 	}
 	/* Make threads in pool */
-	thpool_p->threads = (struct thread**)malloc(num_threads * sizeof(struct thread *));
-	if (thpool_p->threads == NULL){
-		fprintf(stderr, "thpool_init(): Could not allocate memory for threads\n");
-		jobqueue_destroy(thpool_p);
-		free(thpool_p->jobqueue_p);
-		free(thpool_p);
-		return;
-	}
 
-	pthread_mutex_init(&(thpool_p->thcount_lock), NULL);
-	pthread_cond_init(&thpool_p->threads_all_idle, NULL);
+	//pthread_mutex_init(&(thpool_p->thcount_lock), NULL);
+	//pthread_cond_init(&thpool_p->threads_all_idle, NULL);
 	
 
 	/* Thread init */
 	int n;
-	for (n=0; n<num_threads; n++){
-		thread_init(thpool_p, &thpool_p->threads[n], n);
-		if (THPOOL_DEBUG)
-			printf("THPOOL_DEBUG: Created thread %d in pool \n", n);
+	for (n=0; n<thpool_p->maxthreads; n++){
+		int status = pthread_create(&thpool_p->ids[n], NULL, startwork, NULL);
+		if(status != 0){
+			printf("Problem creating thread \n");
+		}
+		//thread_init(thpool_p, &thpool_p->threads[n], n);
+		//if (THPOOL_DEBUG)
+			//printf("THPOOL_DEBUG: Created thread %d in pool \n", n);
 	}
 	
 
 	/* Wait for threads to initialize */
-	while (thpool_p->num_threads_alive != num_threads) {}
+	//while (thpool_p->num_threads_alive != num_threads) {}
 
 	}
   /*
