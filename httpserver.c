@@ -133,6 +133,7 @@ void handle_proxy_request(int fd) {
 
 void *startwork(void*handler){
 	void (*request_handler)(int) = handler;
+	while(1){
 	int client_socket_number = wq_pop(&work_queue);
 	/*
 	printf("Accepted connection from %s on port %d\n",
@@ -142,6 +143,7 @@ void *startwork(void*handler){
 
     request_handler(client_socket_number);
     close(client_socket_number);
+	}
 /*
     printf("Accepted connection from %s on port %d\n",
         inet_ntoa(client_address.sin_addr),
@@ -262,17 +264,7 @@ void serve_forever(int *socket_number, void (*request_handler)(int)) {
       continue;
     }
 
-    printf("Accepted connection from %s on port %d\n",
-        inet_ntoa(client_address.sin_addr),
-        client_address.sin_port);
-
-    // TODO: Change me?
-    request_handler(client_socket_number);
-    close(client_socket_number);
-
-    printf("Accepted connection from %s on port %d\n",
-        inet_ntoa(client_address.sin_addr),
-        client_address.sin_port);
+    wq_push(&work_queue,client_socket_number);
   }
 
   shutdown(*socket_number, SHUT_RDWR);
