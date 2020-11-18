@@ -13,7 +13,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <unistd.h>
 
 #include "libhttp.h"
 #include "wq.h"
@@ -32,6 +31,7 @@ pthread_t *workers = NULL;
 int num_threads;
 int server_port;
 char *server_files_directory;
+char *previous_directory;
 char *server_proxy_hostname;
 int server_proxy_port;
 typedef struct tThpool {
@@ -39,6 +39,82 @@ typedef struct tThpool {
 	int maxthreads;
 	int numthreads;
 } thpool;
+
+void load_file(int fd, char* path, size_t size) {
+  FILE* f;
+  char* data;
+
+  http_start_response(fd, 200);
+  http_send_header(fd, "Content-Type", http_get_mime_type(path));
+  http_send_header(fd, "Server", "httpserver/1.0");
+  http_end_headers(fd);
+
+  f = fopen(path, "rb");
+  if (!f) {
+    printf("couldn't open path: %s\n", path);
+    return;
+  }
+
+  data = malloc(size);
+  fread(data, size, 1, f);
+  http_send_data(fd, data, size);
+  fclose(f);
+  free(data);
+}
+
+void load_dir(int fd, char* path) {
+  DIR* d;
+  d = opendir(path);
+  if (!d) {
+    return;
+  }
+  struct dirent* dir;
+
+  http_start_response(fd, 200);
+  http_send_header(fd, "Content-Type", "text/html");
+  http_send_header(fd, "Server", "httpserver/1.0");
+  http_end_headers(fd);
+  http_send_string(fd, "<head><link rel=\"icon\" href=\"data:,\"></head>");
+
+  char temp[600];
+  sprintf(temp, "<center><h1>%s</h1><hr></center>", path);
+  http_send_string(fd, temp);
+  http_send_string(fd, "<ul style=\"list-style-type:none;\">");
+
+  // loop through files to list names
+  while ((dir = readdir(d))) {
+    sprintf(temp, "<li><a href=\"%s\">%s</a></li>", dir->d_name, dir->d_name);
+    http_send_string(fd, temp);
+  }
+  http_send_string(fd, "</ul>");
+  closedir(d);
+}
+
+char* join_path(char* p1, char* p2) {
+  char* joined;
+  int p1_end = strlen(p1) - 1;
+  int p1_len;
+
+  if (p1[p1_end] == '/') {
+    p1_len = strlen(p1) - 1;
+  } else {
+    p1_len = strlen(p1);
+  }
+  // joined = malloc(p1_len + sizeof(p2));
+  if (strlen(p2) == 1) {
+    joined = malloc(p1_len + 2);
+    memset(joined, 0, p1_len + 2);
+    strncpy(joined, p1, p1_len);
+    strcat(joined, "/\0");
+  } else {
+    joined = malloc(100);
+    // printf("bytes allocated: %lu\n", sizeof(joined));
+    memset(joined, 0, p1_len + sizeof(*p2));
+    strncpy(joined, p1, p1_len);
+    strcat(joined, p2);
+  }
+  return joined;
+}
 
 /*
  * Reads an HTTP request from stream (fd), and writes an HTTP response
@@ -52,23 +128,57 @@ typedef struct tThpool {
  *   4) Send a 404 Not Found response.
  */
 void handle_files_request(int fd) {
-
-  /*
-   * TODO: Your solution for Task 1 goes here! Feel free to delete/modify *
-   * any existing code.
-   */
-
   struct http_request *request = http_request_parse(fd);
+  struct stat s;
+  char* joined_path;
 
-  http_start_response(fd, 200);
-  http_send_header(fd, "Content-Type", "text/html");
-  http_end_headers(fd);
-  http_send_string(fd,
-      "<center>"
-      "<h1>Welcome to httpserver!</h1>"
-      "<hr>"
-      "<p>Nothing's here yet.</p>"
-      "</center>");
+  // if (strcmp(request->path, "/") == 0) {
+  //   server_files_directory = previous_directory;
+  // }
+  printf("%s\n", request->path);
+  joined_path = join_path(server_files_directory, request->path);
+  // printf("sfd: %s\nreq: %s\n\n", server_files_directory, request->path);
+  // printf("path: %s\n", joined_path);
+
+  if (stat(joined_path, &s) == 0) {
+    if (s.st_mode & S_IFDIR) {
+      // if path is a directory
+      // previous_directory = server_files_directory;
+      // server_files_directory = joined_path;
+      DIR* d = opendir(joined_path);
+      struct dirent *dir;
+      // check if directory contains an index.html
+      while ((dir = readdir(d))) {
+        if (strcmp(dir->d_name, "index.html") == 0) {
+          char* new_path = join_path(joined_path, "/index.html");
+          stat(new_path, &s);
+          closedir(d);
+          load_file(fd, new_path, s.st_size);
+          return;
+        }
+      }
+      closedir(d);
+      load_dir(fd, joined_path);
+    } else if (s.st_mode & S_IFREG) {
+      // if path is a file
+      load_file(fd, joined_path, s.st_size);
+    } 
+  } else {
+    // 404 error
+    http_start_response(fd, 404);
+    http_send_header(fd, "Content-Type", "text/html");
+    http_send_header(fd, "Server", "httpserver/1.0");
+    http_end_headers(fd);
+    http_send_string(fd,
+        "<center>"
+        "<h1>404 ERROR</h1>"
+        "<hr>"
+        "<p>No page found</p>"
+        "</center>");
+  }
+  close(fd);
+  free(joined_path);
+  // printf("sfd: %s\nprv: %s\nreq: %s\n\n", server_files_directory, previous_directory, request->path);
 }
 
 
@@ -350,6 +460,7 @@ int main(int argc, char **argv) {
     exit_with_usage();
   }
 
+  previous_directory = server_files_directory;
   serve_forever(&server_fd, request_handler);
 
   return EXIT_SUCCESS;
