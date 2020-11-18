@@ -47,7 +47,7 @@ void load_file(int fd, char* path, size_t size) {
     return;
   }
 
-  data = malloc(size*sizeof(char));
+  data = malloc(size);
   fread(data, size, 1, f);
   http_send_data(fd, data, size);
   fclose(f);
@@ -93,14 +93,15 @@ char* join_path(char* p1, char* p2) {
     p1_len = strlen(p1);
   }
   // joined = malloc(p1_len + sizeof(p2));
-  if (strcmp(p2, "/") == 0) {
+  if (strlen(p2) == 1) {
     joined = malloc(p1_len + 2);
     memset(joined, 0, p1_len + 2);
     strncpy(joined, p1, p1_len);
     strcat(joined, "/\0");
   } else {
-    joined = malloc(p1_len + sizeof(p2));
-    memset(joined, 0, p1_len + sizeof(p2));
+    joined = malloc(100);
+    // printf("bytes allocated: %lu\n", sizeof(joined));
+    memset(joined, 0, p1_len + sizeof(*p2));
     strncpy(joined, p1, p1_len);
     strcat(joined, p2);
   }
@@ -123,16 +124,19 @@ void handle_files_request(int fd) {
   struct stat s;
   char* joined_path;
 
-  if (strcmp(request->path, "/") == 0) {
-    server_files_directory = previous_directory;
-  }
+  // if (strcmp(request->path, "/") == 0) {
+  //   server_files_directory = previous_directory;
+  // }
+  printf("%s\n", request->path);
   joined_path = join_path(server_files_directory, request->path);
+  // printf("sfd: %s\nreq: %s\n\n", server_files_directory, request->path);
+  // printf("path: %s\n", joined_path);
 
   if (stat(joined_path, &s) == 0) {
-    previous_directory = server_files_directory;
-    server_files_directory = joined_path;
     if (s.st_mode & S_IFDIR) {
       // if path is a directory
+      // previous_directory = server_files_directory;
+      // server_files_directory = joined_path;
       DIR* d = opendir(joined_path);
       struct dirent *dir;
       // check if directory contains an index.html
@@ -140,8 +144,8 @@ void handle_files_request(int fd) {
         if (strcmp(dir->d_name, "index.html") == 0) {
           char* new_path = join_path(joined_path, "/index.html");
           stat(new_path, &s);
-          load_file(fd, new_path, s.st_size);
           closedir(d);
+          load_file(fd, new_path, s.st_size);
           return;
         }
       }
@@ -164,7 +168,9 @@ void handle_files_request(int fd) {
         "<p>No page found</p>"
         "</center>");
   }
-  printf("sfd: %s\nprv: %s\nreq: %s\n\n", server_files_directory, previous_directory, request->path);
+  close(fd);
+  free(joined_path);
+  // printf("sfd: %s\nprv: %s\nreq: %s\n\n", server_files_directory, previous_directory, request->path);
 }
 
 
