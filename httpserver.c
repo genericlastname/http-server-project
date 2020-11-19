@@ -31,9 +31,9 @@ pthread_t *workers = NULL;
 int num_threads;
 int server_port;
 char *server_files_directory;
-char *previous_directory;
 char *server_proxy_hostname;
 int server_proxy_port;
+
 typedef struct tThpool {
 	pthread_t *ids;
 	int maxthreads;
@@ -132,19 +132,12 @@ void handle_files_request(int fd) {
   struct stat s;
   char* joined_path;
 
-  // if (strcmp(request->path, "/") == 0) {
-  //   server_files_directory = previous_directory;
-  // }
-  printf("%s\n", request->path);
   joined_path = join_path(server_files_directory, request->path);
-  // printf("sfd: %s\nreq: %s\n\n", server_files_directory, request->path);
-  // printf("path: %s\n", joined_path);
+  printf("%s\n\n", joined_path);
 
   if (stat(joined_path, &s) == 0) {
     if (s.st_mode & S_IFDIR) {
       // if path is a directory
-      // previous_directory = server_files_directory;
-      // server_files_directory = joined_path;
       DIR* d = opendir(joined_path);
       struct dirent *dir;
       // check if directory contains an index.html
@@ -176,9 +169,6 @@ void handle_files_request(int fd) {
         "<p>No page found</p>"
         "</center>");
   }
-  close(fd);
-  free(joined_path);
-  // printf("sfd: %s\nprv: %s\nreq: %s\n\n", server_files_directory, previous_directory, request->path);
 }
 
 
@@ -242,84 +232,49 @@ void handle_proxy_request(int fd) {
 }
 
 void *startwork(void*handler){
-	void (*request_handler)(int) = handler;
-	while(1){
-	int client_socket_number = wq_pop(&work_queue);
-	/*
-	printf("Accepted connection from %s on port %d\n",
-        inet_ntoa(client_address.sin_addr),
-        client_address.sin_port);
-	*/
+  void (*request_handler)(int) = handler;
+  while(1){
+    int client_socket_number = wq_pop(&work_queue);
 
     request_handler(client_socket_number);
     close(client_socket_number);
-	}
-/*
-    printf("Accepted connection from %s on port %d\n",
-        inet_ntoa(client_address.sin_addr),
-        client_address.sin_port);
-	*/
-	return NULL;
+  }
+  return NULL;
 }
 
 
 void init_thread_pool(int num_threads, void (*request_handler)(int)) {
-  /*
-   * TODO: Part of your solution for Task 2 goes here!
-   */
-  
-  threads_on_hold   = 0;
-	threads_keepalive = 1;
-	if (num_threads < 0){
-		num_threads = 0;
-	}
-	/* Make new thread pool */
-	thpool* thpool_p;
-	thpool_p = (thpool*)malloc(sizeof( thpool));
-	if (thpool_p == NULL){
-		fprintf(stderr, "thpool_init(): Could not allocate memory for thread pool\n");
-		return;
-	}
-	thpool_p->numthreads = 0;
-	thpool_p->maxthreads = 5;
-	thpool_p->ids = (pthread_t *)malloc(sizeof(pthread_t ) * thpool_p->maxthreads);
-	
-	/* Initialise the job queue */
-	if (thpool_p->ids == NULL){
-		fprintf(stderr, "thpool_init(): Could not allocate memory for job queue\n");
-		free(thpool_p);
-		return;
-	}
-	/* Make threads in pool */
+  threads_on_hold = 0;
+  threads_keepalive = 1;
+  if (num_threads < 0){
+    num_threads = 0;
+  }
+  /* Make new thread pool */
+  thpool* thpool_p;
+  thpool_p = (thpool*)malloc(sizeof( thpool));
+  if (thpool_p == NULL){
+    fprintf(stderr, "thpool_init(): Could not allocate memory for thread pool\n");
+    return;
+  }
+  thpool_p->numthreads = 0;
+  thpool_p->maxthreads = 5;
+  thpool_p->ids = (pthread_t *)malloc(sizeof(pthread_t ) * thpool_p->maxthreads);
 
-	//pthread_mutex_init(&(thpool_p->thcount_lock), NULL);
-	//pthread_cond_init(&thpool_p->threads_all_idle, NULL);
-	
-
-	/* Thread init */
-	int n;
-	for (n=0; n<thpool_p->maxthreads; n++){
-		int status = pthread_create(&thpool_p->ids[n], NULL, &startwork, (void*)request_handler);
-		if(status != 0){
-			printf("Problem creating thread \n");
-		}
-		//thread_init(thpool_p, &thpool_p->threads[n], n);
-		//if (THPOOL_DEBUG)
-			//printf("THPOOL_DEBUG: Created thread %d in pool \n", n);
-	}
-	
-
-	/* Wait for threads to initialize */
-	//while (thpool_p->num_threads_alive != num_threads) {}
-
-	}
-  /*
-  workers = (pthread_t *)calloc(num_threads, sizeof(pthread_t));
-  for( int t =0;t<num_threads;t++){
-    if(pthread_create(&workers[t],NULL,request_handler,0) != 0){
-      //error do something
-      */
- 
+  /* Initialise the job queue */
+  if (thpool_p->ids == NULL){
+    fprintf(stderr, "thpool_init(): Could not allocate memory for job queue\n");
+    free(thpool_p);
+    return;
+  }
+  /* Thread init */
+  int n;
+  for (n=0; n<thpool_p->maxthreads; n++){
+    int status = pthread_create(&thpool_p->ids[n], NULL, &startwork, (void*)request_handler);
+    if(status != 0){
+      printf("Problem creating thread \n");
+    }
+  }
+}
 
 /*
  * Opens a TCP stream socket on all interfaces with port number PORTNO. Saves
@@ -373,8 +328,10 @@ void serve_forever(int *socket_number, void (*request_handler)(int)) {
       perror("Error accepting socket");
       continue;
     }
-
-    wq_push(&work_queue,client_socket_number);
+    printf("Accepted connection from %s on port %d\n",
+        inet_ntoa(client_address.sin_addr),
+        client_address.sin_port);
+    wq_push(&work_queue, client_socket_number);
   }
 
   shutdown(*socket_number, SHUT_RDWR);
@@ -460,7 +417,6 @@ int main(int argc, char **argv) {
     exit_with_usage();
   }
 
-  previous_directory = server_files_directory;
   serve_forever(&server_fd, request_handler);
 
   return EXIT_SUCCESS;
