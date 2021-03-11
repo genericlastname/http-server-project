@@ -1,4 +1,5 @@
 # HTTP Server Project
+## Authors: Kyle Brown, Blair Newman
 #### CSC 375 - Prof. Sazegarnejad
 A simple HTTP server written in C.
 
